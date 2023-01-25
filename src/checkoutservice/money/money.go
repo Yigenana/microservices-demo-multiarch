@@ -15,9 +15,11 @@
 package money
 
 import (
+	"context"
 	"errors"
 
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/genproto"
+	tracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 const (
@@ -122,11 +124,20 @@ func Sum(l, r pb.Money) (pb.Money, error) {
 
 // MultiplySlow is a slow multiplication operation done through adding the value
 // to itself n-1 times.
-func MultiplySlow(m pb.Money, n uint32) pb.Money {
+func MultiplySlow(ctx context.Context, m pb.Money, n uint32) pb.Money {
+	// Create a span for MultiplySlow
+	span, _ := tracer.StartSpanFromContext(ctx, "MultiplySlow")
+	defer span.Finish()
+
 	out := m
 	for n > 1 {
 		out = Must(Sum(out, m))
 		n--
 	}
+
+	// Set tags
+	span.SetTag("MultiplySlow.Unit", out.Units)
+	span.SetTag("MultiplySlow.Currency", out.CurrencyCode)
+
 	return out
 }
